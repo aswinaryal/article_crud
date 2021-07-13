@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/aswinaryal/article_crud#readme",
   "dependencies": {
+    "aws-sdk": "^2.944.0",
     "dotenv": "^10.0.0",
     "express": "^4.17.1"
   },
