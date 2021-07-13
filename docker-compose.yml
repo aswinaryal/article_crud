@@ -5,7 +5,7 @@ services:
     container_name: dynamodb-local
     command: "-jar DynamoDBLocal.jar -sharedDb -optimizeDbBeforeStartup -dbPath ./data"
     volumes:
-      - "./docker/dynamodb:/home/dynamodblocal/data"
+      - "./dynamodb_local:/home/dynamodblocal/data"
     ports:
       - "8000:8000"
     expose:
