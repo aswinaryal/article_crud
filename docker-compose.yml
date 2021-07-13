@@ -1,0 +1,26 @@
+version: "3"
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    command: "-jar DynamoDBLocal.jar -sharedDb -optimizeDbBeforeStartup -dbPath ./data"
+    volumes:
+      - "./docker/dynamodb:/home/dynamodblocal/data"
+    ports:
+      - "8000:8000"
+    expose:
+      - "8000"
+  node-app:
+    build:
+      context: .
+    container_name: app-node
+    ports:
+      - "3000:3000"
+    depends_on:
+      - "dynamodb-local"
+    links:
+      - "dynamodb-local"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: npm run start:dev
