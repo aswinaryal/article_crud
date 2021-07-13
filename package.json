@@ -1,0 +1,28 @@
+{
+  "name": "article_crud",
+  "version": "1.0.0",
+  "description": "Restful API for CRUD application using expressJs framework that has following features. - Logged in users can create, delete and update their article - Public user can read the article",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "start:dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aswinaryal/article_crud.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/aswinaryal/article_crud/issues"
+  },
+  "homepage": "https://github.com/aswinaryal/article_crud#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.12"
+  }
+}
