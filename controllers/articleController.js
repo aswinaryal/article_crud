@@ -58,7 +58,6 @@ exports.getArticles = async (req, res, next) => {
 
   try {
     const response = await dynamodb.scan(params).promise();
-    console.log("all response ", response);
     const { Items, Count } = response;
 
     // Items.forEach((item) => {
@@ -109,18 +108,18 @@ exports.createArticle = async (req, res, next) => {
 };
 
 exports.updateArticleById = async (req, res, next) => {
-  const article_id = req.params.id;
   const { title, content } = req.body;
   if (!title) {
     return next(new AppError("Please provide title for your article"));
   }
 
+  const article_id = req.params.id;
   const userEmail = req.user;
 
   try {
     const article = await getUserArticleById(article_id, userEmail);
 
-    if (article && Object.keys(article).length === 0) {
+    if (!article || Object.keys(article).length === 0) {
       return next(
         new AppError("No any article associated with the given id", 404)
       );
@@ -147,6 +146,42 @@ exports.updateArticleById = async (req, res, next) => {
     res.status(200).json({
       status: "article has been successfully updated",
       data: { article_updated }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteArticle = async (req, res, next) => {
+  const article_id = req.params.id;
+  const userEmail = req.user;
+
+  const docClient = new AWS.DynamoDB.DocumentClient();
+  const params = {
+    TableName: tableName,
+    Key: {
+      id: article_id
+    }
+  };
+
+  try {
+    const article = await getUserArticleById(article_id, userEmail);
+
+    if (!article || Object.keys(article).length === 0) {
+      return next(
+        new AppError("No any article associated with the given id", 404)
+      );
+    }
+
+    if (!(article.author === userEmail)) {
+      return next(new AppError("You cannot delete this article", 401));
+    }
+
+    await docClient.delete(params).promise();
+
+    res.status(204).json({
+      status: "success",
+      data: null
     });
   } catch (err) {
     next(err);

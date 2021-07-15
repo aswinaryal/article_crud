@@ -4,7 +4,8 @@ const {
   getArticles,
   createArticle,
   deleteArticleTable,
-  updateArticleById
+  updateArticleById,
+  deleteArticle
 } = require("../controllers/articleController");
 const { protect } = require("../controllers/authController");
 const router = express.Router();
@@ -14,6 +15,9 @@ router.delete("/delete-articles-table", deleteArticleTable);
 
 router.route("/").get(getArticles).post(protect, createArticle);
 
-router.route("/:id").patch(protect, updateArticleById);
+router
+  .route("/:id")
+  .patch(protect, updateArticleById)
+  .delete(protect, deleteArticle);
 
 module.exports = router;
