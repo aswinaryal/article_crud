@@ -47,11 +47,12 @@ exports.getArticles = async (req, res, next) => {
 
   const params = {
     TableName: tableName,
-    ProjectionExpression: "#id, #title, #content",
+    ProjectionExpression: "#id, #title, #content, #author",
     ExpressionAttributeNames: {
       "#id": "id",
       "#title": "title",
-      "#content": "content"
+      "#content": "content",
+      "#author": "author"
     }
   };
 
@@ -84,23 +85,83 @@ exports.createArticle = async (req, res, next) => {
 
   const docClient = new AWS.DynamoDB.DocumentClient();
 
+  const article_new = {
+    id: uuid.v4(),
+    title,
+    content,
+    author: req.user
+  };
+
   const params = {
     TableName: tableName,
-    Item: {
-      id: uuid.v4(),
-      title,
-      content,
-      author: req.user
-    }
+    Item: article_new
   };
 
   try {
     await docClient.put(params).promise();
     return res.status(201).json({
-      status: "success",
-      message: "Article has been successfully created"
+      message: "article has been successfully created",
+      data: { article_new }
     });
   } catch (err) {
     next(err);
   }
+};
+
+exports.updateArticleById = async (req, res, next) => {
+  const article_id = req.params.id;
+  const { title, content } = req.body;
+  if (!title) {
+    return next(new AppError("Please provide title for your article"));
+  }
+
+  const userEmail = req.user;
+
+  try {
+    const article = await getUserArticleById(article_id, userEmail);
+
+    if (article && Object.keys(article).length === 0) {
+      return next(
+        new AppError("No any article associated with the given id", 404)
+      );
+    }
+
+    if (!(article.author === userEmail)) {
+      return next(new AppError("You cannot update this article", 401));
+    }
+
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const article_updated = {
+      id: article_id,
+      title,
+      content,
+      author: userEmail
+    };
+
+    const params = {
+      TableName: tableName,
+      Item: article_updated
+    };
+
+    await docClient.put(params).promise();
+    res.status(200).json({
+      status: "article has been successfully updated",
+      data: { article_updated }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getUserArticleById = async (id) => {
+  const docClient = new AWS.DynamoDB.DocumentClient();
+  const params = {
+    TableName: tableName,
+    Key: {
+      id
+    }
+  };
+  const data = await docClient.get(params).promise();
+  const { Item } = data;
+  return Item;
 };
