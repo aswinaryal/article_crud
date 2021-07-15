@@ -44,3 +44,30 @@ exports.deleteUserTable = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getUsers = async (req, res, next) => {
+  const docClient = new AWS.DynamoDB.DocumentClient();
+  const params = {
+    TableName: tableName,
+    ProjectionExpression: "#id, #email",
+    ExpressionAttributeNames: {
+      "#id": "id",
+      "#email": "email"
+    }
+  };
+
+  try {
+    const data = await docClient.scan(params).promise();
+    const { Items } = data;
+    res.status(200).json({
+      status: "success",
+      results: Items
+    });
+  } catch (err) {
+    console.log(
+      "Created table. Table description JSON:",
+      JSON.stringify(data, null, 2)
+    );
+    next(err);
+  }
+};
