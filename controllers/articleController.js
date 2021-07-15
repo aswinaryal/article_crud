@@ -1,9 +1,21 @@
 const AWS = require("aws-sdk");
+const redis = require("redis");
+
 const { articleAttributes, articleKeySchema } = require("../models/Article");
 const AppError = require("../utils/AppError");
 const uuid = require("uuid");
+const redis = require("redis");
+const { promisify } = require("util");
 
 const tableName = "Article";
+
+const redis_client = redis.createClient({
+  host: process.env.REDIS_HOST,
+  port: process.env.REDIS_PORT
+});
+
+const GET_ASYNC = promisify(redis_client.get).bind(redis_client);
+const SET_ASYNC = promisify(redis_client.set).bind(redis_client);
 
 exports.createArticleTable = async (req, res, next) => {
   const dynamodb = new AWS.DynamoDB();
@@ -43,6 +55,19 @@ exports.deleteArticleTable = async (req, res, next) => {
 };
 
 exports.getArticles = async (req, res, next) => {
+  const cached_articles_data = await GET_ASYNC("articles");
+  const cached_articles = JSON.parse(cached_articles_data);
+  if (cached_articles) {
+    console.log("using cached data -->> ", cached_articles);
+    // res.status(200).json({
+    //   status: "success",
+    //   results: Items,
+    //   total_articles: Count
+    // });
+
+    return;
+  }
+
   const dynamodb = new AWS.DynamoDB();
 
   const params = {
