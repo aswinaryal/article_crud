@@ -1,10 +1,10 @@
 const AWS = require("aws-sdk");
 const { articleAttributes, articleKeySchema } = require("../models/Article");
 
-const dynamodb = new AWS.DynamoDB();
 const tableName = "Article";
 
 exports.createArticleTable = async (req, res, next) => {
+  const dynamodb = new AWS.DynamoDB();
   const params = {
     TableName: tableName,
     KeySchema: [{ ...articleKeySchema }],
@@ -26,6 +26,7 @@ exports.createArticleTable = async (req, res, next) => {
 };
 
 exports.deleteArticleTable = async (req, res, next) => {
+  const dynamodb = new AWS.DynamoDB();
   const params = {
     TableName: tableName
   };
@@ -35,6 +36,25 @@ exports.deleteArticleTable = async (req, res, next) => {
       status: "article table deleted successfully"
     });
   } catch (err) {
+    next(err);
+  }
+};
+
+exports.getArticles = async (req, res, next) => {
+  const dynamodb = new AWS.DynamoDB();
+  const params = {
+    TableName: tableName
+  };
+
+  try {
+    const allArticles = await dynamodb.scan(params).promise();
+    console.log("all articles => ", allArticles);
+    res.status(200).json({
+      status: "success",
+      results: []
+    });
+  } catch (err) {
+    console.log(err);
     next(err);
   }
 };

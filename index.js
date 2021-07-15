@@ -25,7 +25,7 @@ app.get("/api/v1/status", (req, res, next) => {
 });
 
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/article", articleRouter);
+app.use("/api/v1/articles", articleRouter);
 app.use(globalErrorHandler);
 
 app.listen(PORT, () => {
