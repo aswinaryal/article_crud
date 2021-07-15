@@ -3,6 +3,7 @@ const AppError = require("../utils/AppError");
 const uuid = require("uuid");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { promisify } = require("util");
 
 const tableName = "User";
 
@@ -11,14 +12,13 @@ const signToken = (email) =>
     expiresIn: process.env.JWT_EXPIRES_IN
   });
 
-const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user.email);
-  user.password = undefined;
+const createSendToken = (userEmail, statusCode, res) => {
+  const token = signToken(userEmail);
   res.status(statusCode).json({
     status: "success",
     token,
     data: {
-      user
+      user: userEmail
     }
   });
 };
@@ -40,8 +40,7 @@ exports.signup = async (req, res, next) => {
         },
         ConditionExpression: "attribute_not_exists(email)"
       };
-      const response = await docClient.put(params).promise();
-      console.log("reponse after saving user ", response);
+      await docClient.put(params).promise();
       return res.status(201).json({
         status: "success",
         message: "User successfully registered"
@@ -74,26 +73,20 @@ exports.login = async (req, res, next) => {
   );
 
   if (requestEmail && requestPassword) {
-    const docClient = new AWS.DynamoDB.DocumentClient();
-    const params = {
-      TableName: tableName,
-      Key: {
-        email: requestEmail
-      }
-    };
     try {
-      const data = await docClient.get(params).promise();
-      const { Item } = data;
-
       const incorrectCredentialsError = new AppError(
         "Incorrect email or password",
         401
       );
 
-      if (!Item) {
+      const user = await getUserInfoViaEmail(requestEmail);
+
+      console.log("esma k aayo", user);
+
+      if (!user) {
         return next(incorrectCredentialsError);
       }
-      const { password } = Item;
+      const { password, email } = user;
 
       const isCorrectPassword = await bcrypt.compare(requestPassword, password);
 
@@ -101,12 +94,63 @@ exports.login = async (req, res, next) => {
         return next(incorrectCredentialsError);
       }
 
-      const user = { ...Item };
-      createSendToken(user, 200, res);
+      createSendToken(email, 200, res);
     } catch (err) {
       next(err);
     }
   } else {
     return next(new AppError("Username or password not found", 404));
   }
+};
+
+exports.protect = async (req, res, next) => {
+  let token;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+  if (!token) {
+    return next(
+      new AppError("You are not logged in, Please log in to get access", 401)
+    );
+  }
+
+  try {
+    const decodedInfo = await promisify(jwt.verify)(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    const { email } = decodedInfo;
+
+    const user = await getUserInfoViaEmail(email);
+
+    if (!user) {
+      return next(
+        new AppError("The token belonging to this user does no longer exists.")
+      );
+    }
+
+    req.user = user.email;
+    next();
+  } catch (e) {
+    return next(e);
+  }
+};
+
+const getUserInfoViaEmail = async (user_email) => {
+  const docClient = new AWS.DynamoDB.DocumentClient();
+  const params = {
+    TableName: tableName,
+    Key: {
+      email: user_email
+    }
+  };
+  const data = await docClient.get(params).promise();
+  const {
+    Item: { email, password }
+  } = data;
+  return { email, password };
 };
