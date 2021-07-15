@@ -4,7 +4,6 @@ const redis = require("redis");
 const { articleAttributes, articleKeySchema } = require("../models/Article");
 const AppError = require("../utils/AppError");
 const uuid = require("uuid");
-const redis = require("redis");
 const { promisify } = require("util");
 
 const tableName = "Article";
@@ -56,16 +55,15 @@ exports.deleteArticleTable = async (req, res, next) => {
 
 exports.getArticles = async (req, res, next) => {
   const cached_articles_data = await GET_ASYNC("articles");
-  const cached_articles = JSON.parse(cached_articles_data);
-  if (cached_articles) {
-    console.log("using cached data -->> ", cached_articles);
-    // res.status(200).json({
-    //   status: "success",
-    //   results: Items,
-    //   total_articles: Count
-    // });
 
-    return;
+  if (cached_articles_data) {
+    const cached_articles = JSON.parse(cached_articles_data);
+
+    return res.status(200).json({
+      status: "success",
+      results: cached_articles,
+      total_articles: cached_articles.length
+    });
   }
 
   const dynamodb = new AWS.DynamoDB();
@@ -85,9 +83,7 @@ exports.getArticles = async (req, res, next) => {
     const response = await dynamodb.scan(params).promise();
     const { Items, Count } = response;
 
-    // Items.forEach((item) => {
-    //   console.log(item.title.S);
-    // });
+    await SET_ASYNC("articles", JSON.stringify(Items));
 
     res.status(200).json({
       status: "success",
@@ -95,7 +91,6 @@ exports.getArticles = async (req, res, next) => {
       total_articles: Count
     });
   } catch (err) {
-    console.log(err);
     next(err);
   }
 };
