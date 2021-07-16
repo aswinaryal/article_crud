@@ -1,6 +1,7 @@
 const AWS = require("aws-sdk");
 const dotenv = require("dotenv");
 const express = require("express");
+const cluster = require("cluster");
 dotenv.config({ path: "./.env" });
 
 const userRouter = require("./routes/userRouter");
@@ -28,6 +29,24 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/articles", articleRouter);
 app.use(globalErrorHandler);
 
-app.listen(PORT, () => {
-  console.log(`server started at port ${PORT}`);
-});
+const cpuCount = require("os").cpus().length;
+
+if (cpuCount > 1) {
+  if (cluster.isMaster) {
+    for (let i = 0; i < cpuCount; i++) {
+      cluster.fork();
+    }
+  } else {
+    app.listen(PORT, () => {
+      console.log(
+        `server started at port ${PORT} with process id ${process.pid}`
+      );
+    });
+  }
+} else {
+  app.listen(PORT, () => {
+    console.log(
+      `server started at port ${PORT} with process id ${process.pid}`
+    );
+  });
+}
