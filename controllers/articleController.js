@@ -45,6 +45,16 @@ exports.deleteArticleTable = async (req, res, next) => {
   };
   try {
     await dynamodb.deleteTable(params).promise();
+
+    const cached_articles_data = await GET_ASYNC("articles");
+
+    if (cached_articles_data) {
+      const cached_articles = JSON.parse(cached_articles_data);
+      if (cached_articles.length > 0) {
+        await SET_ASYNC("articles", JSON.stringify([]));
+      }
+    }
+
     res.status(200).json({
       status: "article table deleted successfully"
     });
@@ -58,12 +68,14 @@ exports.getArticles = async (req, res, next) => {
 
   if (cached_articles_data) {
     const cached_articles = JSON.parse(cached_articles_data);
-
-    return res.status(200).json({
-      status: "success",
-      results: cached_articles,
-      total_articles: cached_articles.length
-    });
+    if (cached_articles.length > 0) {
+      console.log(" ===== cached articles ==== ");
+      return res.status(200).json({
+        status: "success",
+        results: cached_articles,
+        total_articles: cached_articles.length
+      });
+    }
   }
 
   const dynamodb = new AWS.DynamoDB();
@@ -83,7 +95,9 @@ exports.getArticles = async (req, res, next) => {
     const response = await dynamodb.scan(params).promise();
     const { Items, Count } = response;
 
-    await SET_ASYNC("articles", JSON.stringify(Items));
+    if (Items.length > 0) {
+      await SET_ASYNC("articles", JSON.stringify(Items), "EX", 86400000);
+    }
 
     res.status(200).json({
       status: "success",
@@ -118,6 +132,7 @@ exports.createArticle = async (req, res, next) => {
 
   try {
     await docClient.put(params).promise();
+    await invalidateArticleCache();
     return res.status(201).json({
       message: "article has been successfully created",
       data: { article_new }
@@ -137,7 +152,7 @@ exports.updateArticleById = async (req, res, next) => {
   const userEmail = req.user;
 
   try {
-    const article = await getUserArticleById(article_id, userEmail);
+    const article = await getArticleById(article_id);
 
     if (!article || Object.keys(article).length === 0) {
       return next(
@@ -163,6 +178,7 @@ exports.updateArticleById = async (req, res, next) => {
     };
 
     await docClient.put(params).promise();
+    await invalidateArticleCache();
     res.status(200).json({
       status: "article has been successfully updated",
       data: { article_updated }
@@ -185,7 +201,7 @@ exports.deleteArticle = async (req, res, next) => {
   };
 
   try {
-    const article = await getUserArticleById(article_id, userEmail);
+    const article = await getArticleById(article_id);
 
     if (!article || Object.keys(article).length === 0) {
       return next(
@@ -198,7 +214,7 @@ exports.deleteArticle = async (req, res, next) => {
     }
 
     await docClient.delete(params).promise();
-
+    await invalidateArticleCache();
     res.status(204).json({
       status: "success",
       data: null
@@ -208,7 +224,7 @@ exports.deleteArticle = async (req, res, next) => {
   }
 };
 
-const getUserArticleById = async (id) => {
+const getArticleById = async (id) => {
   const docClient = new AWS.DynamoDB.DocumentClient();
   const params = {
     TableName: tableName,
@@ -219,4 +235,17 @@ const getUserArticleById = async (id) => {
   const data = await docClient.get(params).promise();
   const { Item } = data;
   return Item;
+};
+
+const invalidateArticleCache = async () => {
+  const cached_articles_data = await GET_ASYNC("articles");
+
+  if (cached_articles_data) {
+    const cached_articles = JSON.parse(cached_articles_data);
+    if (cached_articles.length > 0) {
+      await SET_ASYNC("articles", JSON.stringify([]));
+      return;
+    }
+  }
+  return cached_articles_data;
 };
