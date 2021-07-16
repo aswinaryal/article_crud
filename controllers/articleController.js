@@ -69,7 +69,6 @@ exports.getArticles = async (req, res, next) => {
   if (cached_articles_data) {
     const cached_articles = JSON.parse(cached_articles_data);
     if (cached_articles.length > 0) {
-      console.log(" ===== cached articles ==== ");
       return res.status(200).json({
         status: "success",
         results: cached_articles,

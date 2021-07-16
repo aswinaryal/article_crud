@@ -81,8 +81,6 @@ exports.login = async (req, res, next) => {
 
       const user = await getUserInfoViaEmail(requestEmail);
 
-      console.log("esma k aayo", user);
-
       if (!user) {
         return next(incorrectCredentialsError);
       }
